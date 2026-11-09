@@ -104,6 +104,8 @@ class AppSettings {
   bool pinEnabled;
   String pin;
   double margin;
+  double premium;
+  String mailUrl;
   bool push;
   bool sound;
 
@@ -113,6 +115,8 @@ class AppSettings {
     this.pinEnabled = false,
     this.pin = '',
     this.margin = 15,
+    this.premium = 1.0,
+    this.mailUrl = '',
     this.push = true,
     this.sound = true,
   });
@@ -123,6 +127,8 @@ class AppSettings {
         'pinEnabled': pinEnabled,
         'pin': pin,
         'margin': margin,
+        'premium': premium,
+        'mailUrl': mailUrl,
         'push': push,
         'sound': sound,
       };
@@ -133,6 +139,8 @@ class AppSettings {
         pinEnabled: j['pinEnabled'] == true,
         pin: '${j['pin'] ?? ''}',
         margin: _d(j['margin'], 15),
+        premium: _d(j['premium'], 1.0).clamp(1.0, 5.0).toDouble(),
+        mailUrl: '${j['mailUrl'] ?? ''}',
         push: j['push'] != false,
         sound: j['sound'] != false,
       );
@@ -143,7 +151,8 @@ class Quote {
   final double prevClose;
   final double dayHigh;
   final double dayLow;
-  final double usdEgp;
+  final double usdEgp; // bank dollar
+  double premium; // goldsmith dollar premium (added to bank dollar)
   final DateTime updated;
 
   Quote({
@@ -153,11 +162,15 @@ class Quote {
     required this.dayLow,
     required this.usdEgp,
     required this.updated,
+    this.premium = 0,
   });
+
+  /// Egyptian goldsmith dollar = bank dollar + premium
+  double get goldEgp => usdEgp + premium;
 
   double get change => prevClose > 0 ? xau - prevClose : 0;
   double get changePct => prevClose > 0 ? change / prevClose * 100 : 0;
-  double get base24 => xau * usdEgp / kOunceGrams;
+  double get base24 => xau * goldEgp / kOunceGrams;
 
   /// karat 0 = global ounce (XAU/USD)
   double sell(int karat) => karat == 0 ? xau : base24 * karat / 24;

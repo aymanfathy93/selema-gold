@@ -14,6 +14,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObserver {
   late final TextEditingController _email = TextEditingController(text: app.settings.email);
+  late final TextEditingController _mailUrl = TextEditingController(text: app.settings.mailUrl);
+  bool _sending = false;
+  String? _mailMsg;
+  bool _mailOk = false;
   bool _batteryOk = false;
   double? _margin;
 
@@ -28,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _email.dispose();
+    _mailUrl.dispose();
     super.dispose();
   }
 
@@ -88,6 +93,42 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     }
   }
 
+  Future<void> _sendTest() async {
+    if (app.settings.email.isEmpty || app.settings.mailUrl.isEmpty) {
+      setState(() {
+        _mailOk = false;
+        _mailMsg = T.t('email_missing');
+      });
+      return;
+    }
+    setState(() {
+      _sending = true;
+      _mailMsg = null;
+    });
+    final ok = await app.testEmail();
+    if (!mounted) return;
+    setState(() {
+      _sending = false;
+      _mailOk = ok;
+      _mailMsg = ok ? T.t('email_ok') : T.t('email_fail');
+    });
+  }
+
+  InputDecoration _dec(String hint) {
+    final s = sc(context);
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: ts(context, 14, color: const Color(0xFF6B7280)),
+      filled: true,
+      fillColor: C.field,
+      contentPadding: EdgeInsets.symmetric(horizontal: 20 * s, vertical: 14 * s),
+      enabledBorder:
+          OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: C.border)),
+      focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: C.gold, width: 1.5)),
+    );
+  }
+
   Widget _row(String label, Widget trailing) {
     return Row(children: [
       Expanded(child: Text(label, style: ts(context, 15, color: const Color(0xFFE5E7EB)))),
@@ -117,20 +158,41 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               textDirection: TextDirection.ltr,
               style: ts(context, 16),
               onChanged: (v) => app.updateSettings((x) => x.email = v.trim()),
-              decoration: InputDecoration(
-                hintText: 'user@selematrading.com',
-                hintStyle: ts(context, 15, color: const Color(0xFF6B7280)),
-                filled: true,
-                fillColor: C.field,
-                contentPadding: EdgeInsets.symmetric(horizontal: 20 * s, vertical: 14 * s),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: C.border)),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: C.gold, width: 1.5)),
-              ),
+              decoration: _dec('user@selematrading.com'),
             ),
-            SizedBox(height: 4 * s),
-            Text(T.t('email_note'), style: ts(context, 12, color: C.muted)),
+            SizedBox(height: 14 * s),
+            Text(T.t('mail_url'), style: ts(context, 14, color: C.goldText, w: FontWeight.w700)),
+            SizedBox(height: 8 * s),
+            TextField(
+              controller: _mailUrl,
+              keyboardType: TextInputType.url,
+              textDirection: TextDirection.ltr,
+              style: ts(context, 13),
+              onChanged: (v) => app.updateSettings((x) => x.mailUrl = v.trim()),
+              decoration: _dec('https://script.google.com/macros/s/.../exec'),
+            ),
+            SizedBox(height: 12 * s),
+            Row(children: [
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: C.goldText,
+                  side: const BorderSide(color: C.gold),
+                  padding: EdgeInsets.symmetric(vertical: 10 * s, horizontal: 14 * s),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: _sending ? null : _sendTest,
+                icon: _sending
+                    ? SizedBox(
+                        width: 18 * s, height: 18 * s, child: const CircularProgressIndicator(strokeWidth: 2, color: C.gold))
+                    : Icon(Icons.mark_email_read_rounded, size: 20 * s),
+                label: Text(T.t('test_email'), style: ts(context, 14, w: FontWeight.w700, color: C.goldText)),
+              ),
+              SizedBox(width: 10 * s),
+              if (_mailMsg != null)
+                Expanded(
+                  child: Text(_mailMsg!, style: ts(context, 13, color: _mailOk ? C.green : C.red)),
+                ),
+            ]),
             const HLine(),
             Text(T.t('language'), style: ts(context, 15, color: C.goldText, w: FontWeight.w700)),
             SizedBox(height: 10 * s),

@@ -115,6 +115,7 @@ class AppState extends ChangeNotifier {
         dayLow: lo,
         usdEgp: q.usdEgp,
         updated: DateTime.now(),
+        premium: settings.premium,
       );
       notifyListeners();
     } catch (_) {
@@ -167,6 +168,7 @@ class AppState extends ChangeNotifier {
           dayLow: lo,
           usdEgp: _egp!,
           updated: DateTime.now(),
+          premium: settings.premium,
         );
         failed = false;
       } else {
@@ -298,8 +300,20 @@ class AppState extends ChangeNotifier {
     await _pullEvents();
   }
 
+  /// live update while dragging the slider (saved on release)
+  void setPremiumLive(double v) {
+    settings.premium = v;
+    quote?.premium = v;
+    notifyListeners();
+  }
+
+  Future<bool> testEmail() async {
+    return Native.testEmail(settings.mailUrl, settings.email);
+  }
+
   Future<void> updateSettings(void Function(AppSettings s) f) async {
     f(settings);
+    quote?.premium = settings.premium;
     T.lang = settings.lang;
     await _saveSettings();
     await _syncNative();

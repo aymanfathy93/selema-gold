@@ -31,6 +31,9 @@ class Native {
     await _call('testAlert', {'title': title, 'body': body, 'sound': sound, 'push': push});
   }
 
+  static Future<bool> testEmail(String url, String to) async =>
+      (await _call('testEmail', {'url': url, 'to': to})) == true;
+
   static Future<void> requestNotifications() async {
     await _call('requestNotif');
   }

@@ -111,7 +111,8 @@ class GoldWatchService : Service() {
         if (egp <= 0.0) return
 
         val margin = settings.optDouble("margin", 15.0)
-        val base24 = xau * egp / OUNCE
+        val premium = settings.optDouble("premium", 0.0)
+        val base24 = xau * (egp + premium) / OUNCE
         fun sell(k: Int) = if (k == 0) xau else base24 * k / 24.0
         fun buy(k: Int) = if (k == 0) xau else sell(k) - margin
 
@@ -125,6 +126,9 @@ class GoldWatchService : Service() {
         val title = settings.optString("title", "وصل السعر للهدف")
         val hint = settings.optString("bodyHint", "")
         val hits = HashMap<String, Double>()
+        val mailUrl = settings.optString("mailUrl", "")
+        val mailTo = settings.optString("email", "")
+        val mails = ArrayList<Array<String>>()
 
         for (i in 0 until deals.length()) {
             val d = deals.optJSONObject(i) ?: continue
@@ -153,12 +157,26 @@ class GoldWatchService : Service() {
                 val label = if (karat == 0) "XAU/USD" else if (type == "buy") "Buy Price (${karat}K)" else "Sell Price (${karat}K)"
                 val unit = if (karat == 0) "USD" else "EGP"
                 val body = "$label = ${fmt(price)} $unit  [${fmt(low)} - ${fmt(high)}]\n$hint"
+                if (mailUrl.isNotBlank() && mailTo.isNotBlank()) {
+                    val kind = if (type == "buy") "شراء (Buy)" else "بيع (Sell)"
+                    val k = if (karat == 0) "الأونصة XAU" else "عيار $karat"
+                    val subject = "Selema Gold: تحقق هدف صفقة $kind - $k"
+                    val html = "<div dir='rtl' style='font-family:Arial;font-size:16px'>" +
+                        "<h2 style='color:#B8913F'>تحقق هدف مدى صفقة $kind</h2>" +
+                        "<p>$label</p><p><b>السعر الحالي: ${fmt(price)} $unit</b></p>" +
+                        "<p>المدى المحدد: ${fmt(low)} - ${fmt(high)}</p>" +
+                        "<p>الأونصة: ${fmt(xau)} USD &nbsp;|&nbsp; دولار الصاغة: ${fmt(egp + premium)} EGP</p>" +
+                        "<p>${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(java.util.Date(now))}</p>" +
+                        "<p style='color:#666'>ادخل تطبيق التداول الخاص بك لتنفيذ الصفقة</p></div>"
+                    mails.add(arrayOf(subject, html))
+                }
                 if (push || sound) Notifier.showAlert(ctx, (d.optString("id").hashCode() and 0xFFFF), title, body, sound)
             }
         }
         if (hits.isNotEmpty()) {
             WatchStore.markDone(ctx, hits, now)
             AlarmPlayer.play(ctx, sound)
+            for (m in mails) PriceFetcher.sendMail(mailUrl, mailTo, m[0], m[1])
         }
         if (WatchStore.activeCount(ctx) == 0) stopSelf()
     }

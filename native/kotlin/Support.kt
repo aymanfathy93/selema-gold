@@ -143,7 +143,7 @@ object AlarmPlayer {
             val am = ctx.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
-            if (cur < max / 2) am.setStreamVolume(AudioManager.STREAM_ALARM, (max * 3) / 4, 0)
+            if (cur < max) am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
         } catch (e: Exception) {
         }
     }
@@ -154,8 +154,9 @@ object AlarmPlayer {
         ringing = loop
         startVibration(ctx, loop)
         try {
-            if (loop) ensureAudible(ctx)
-            var uri: Uri? = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ensureAudible(ctx)
+            var uri: Uri? = Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.bell)
+            if (uri == null) uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             if (uri == null) uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             if (uri == null) uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             if (uri == null) return
@@ -168,6 +169,7 @@ object AlarmPlayer {
             )
             mp.setDataSource(ctx.applicationContext, uri)
             mp.isLooping = loop
+            mp.setVolume(1.0f, 1.0f)
             if (!loop) mp.setOnCompletionListener { stop() }
             mp.prepare()
             mp.start()
@@ -350,6 +352,36 @@ object PriceFetcher {
             }
         }
         return null
+    }
+
+    /** Sends an email through the user's Google Apps Script web app. */
+    fun sendMail(url: String, to: String, subject: String, html: String): Boolean {
+        if (url.isBlank() || to.isBlank()) return false
+        var c: HttpURLConnection? = null
+        return try {
+            val body = JSONObject()
+            body.put("key", "selema-gold-2026")
+            body.put("to", to)
+            body.put("subject", subject)
+            body.put("html", html)
+            c = URL(url.trim()).openConnection() as HttpURLConnection
+            c.requestMethod = "POST"
+            c.doOutput = true
+            c.instanceFollowRedirects = false
+            c.connectTimeout = 15000
+            c.readTimeout = 20000
+            c.setRequestProperty("Content-Type", "text/plain;charset=utf-8")
+            c.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+            val code = c.responseCode
+            code in 200..399
+        } catch (e: Exception) {
+            false
+        } finally {
+            try {
+                c?.disconnect()
+            } catch (e: Exception) {
+            }
+        }
     }
 
     /** Spot XAU/USD; gold-api.com first, then Yahoo gold futures as fallback. */

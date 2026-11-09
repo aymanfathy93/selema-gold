@@ -22,8 +22,23 @@ class _ChartScreenState extends State<ChartScreen> {
   bool _loading = false;
   bool _error = false;
   int? _touch;
+  double _start = -1; // first visible index (-1 = stick to latest)
+  int _win = 0; // visible points (0 = default)
+  double _dragAcc = 0;
 
   static const _days = [1, 7, 30];
+  static const _defaultWin = [72, 96, 168];
+
+  int _winFor(int len) {
+    final w = _win > 0 ? _win : _defaultWin[_period];
+    return w.clamp(10, len < 10 ? 10 : len).toInt();
+  }
+
+  void _resetView() {
+    _start = -1;
+    _win = 0;
+    _touch = null;
+  }
 
   @override
   void initState() {
@@ -58,7 +73,7 @@ class _ChartScreenState extends State<ChartScreen> {
   List<ChartPoint> _series() {
     final raw = _cache[_period] ?? const <ChartPoint>[];
     final off = app.offset;
-    final egp = app.quote?.usdEgp ?? 0;
+    final egp = app.quote?.goldEgp ?? 0;
     return raw.map((e) {
       final usd = e.v + off;
       return ChartPoint(e.t, _mode == 0 ? usd : usd * egp / kOunceGrams);
@@ -68,7 +83,11 @@ class _ChartScreenState extends State<ChartScreen> {
   @override
   Widget build(BuildContext context) {
     final s = sc(context);
-    final pts = _series();
+    final all = _series();
+    final win = all.isEmpty ? 0 : (all.length < _winFor(all.length) ? all.length : _winFor(all.length));
+    final maxStart = (all.length - win).toDouble();
+    final start = all.isEmpty ? 0 : (_start < 0 ? maxStart : _start.clamp(0, maxStart)).round();
+    final pts = all.isEmpty ? <ChartPoint>[] : all.sublist(start, start + win);
     final unit = _mode == 0 ? 'USD' : 'EGP';
     double? first, last, hi, lo;
     if (pts.isNotEmpty) {
@@ -106,7 +125,7 @@ class _ChartScreenState extends State<ChartScreen> {
             index: _period,
             onChanged: (i) {
               _period = i;
-              _touch = null;
+              _resetView();
               _load();
             },
           ),
@@ -142,18 +161,40 @@ class _ChartScreenState extends State<ChartScreen> {
                     : (_error || pts.length < 2)
                         ? Center(child: Text(T.t('chart_err'), style: ts(context, 14, color: C.muted)))
                         : Ltr(LayoutBuilder(builder: (ctx, cons) {
+                            final w = cons.maxWidth - _ChartPainter.leftPad;
+                            final pxPerPt = w / (pts.length - 1);
                             void hit(Offset o) {
-                              final w = cons.maxWidth - _ChartPainter.leftPad;
                               final x = (o.dx - _ChartPainter.leftPad).clamp(0, w).toDouble();
                               final i = (x / w * (pts.length - 1)).round();
                               if (i != _touch) setState(() => _touch = i);
                             }
 
                             return GestureDetector(
-                              onPanDown: (d) => hit(d.localPosition),
-                              onPanUpdate: (d) => hit(d.localPosition),
-                              onPanEnd: (_) => setState(() => _touch = null),
-                              onPanCancel: () => setState(() => _touch = null),
+                              onHorizontalDragStart: (_) {
+                                _dragAcc = 0;
+                                setState(() => _touch = null);
+                              },
+                              onHorizontalDragUpdate: (d) {
+                                // drag right = older data, drag left = newer
+                                _dragAcc += d.delta.dx / pxPerPt;
+                                final shift = _dragAcc.truncate();
+                                if (shift == 0) return;
+                                _dragAcc -= shift;
+                                setState(() {
+                                  final cur = _start < 0 ? maxStart : _start.clamp(0, maxStart).toDouble();
+                                  final next = (cur - shift).clamp(0, maxStart).toDouble();
+                                  _start = next >= maxStart ? -1 : next;
+                                });
+                              },
+                              onLongPressStart: (d) => hit(d.localPosition),
+                              onLongPressMoveUpdate: (d) => hit(d.localPosition),
+                              onLongPressEnd: (_) => setState(() => _touch = null),
+                              onTapUp: (d) {
+                                hit(d.localPosition);
+                                Future<void>.delayed(const Duration(seconds: 2), () {
+                                  if (mounted) setState(() => _touch = null);
+                                });
+                              },
                               child: CustomPaint(
                                 size: Size(cons.maxWidth, cons.maxHeight),
                                 painter: _ChartPainter(pts, _touch, col, sc(context)),
@@ -161,6 +202,45 @@ class _ChartScreenState extends State<ChartScreen> {
                             );
                           })),
               ),
+              if (all.length > win && win > 0) ...[
+                SizedBox(height: 8 * s),
+                Ltr(LayoutBuilder(builder: (ctx, c) {
+                  final f0 = start / all.length;
+                  final fw = win / all.length;
+                  return Container(
+                    height: 6,
+                    decoration: BoxDecoration(color: C.inner, borderRadius: BorderRadius.circular(3)),
+                    child: Stack(children: [
+                      Positioned(
+                        left: c.maxWidth * f0,
+                        width: c.maxWidth * fw,
+                        top: 0,
+                        bottom: 0,
+                        child: Container(
+                            decoration: BoxDecoration(color: C.gold, borderRadius: BorderRadius.circular(3))),
+                      ),
+                    ]),
+                  );
+                })),
+              ],
+              SizedBox(height: 10 * s),
+              Ltr(Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                _ZoomBtn(
+                    icon: Icons.zoom_out_rounded,
+                    onTap: () => setState(() {
+                          _win = (_winFor(all.length) * 2).clamp(10, all.isEmpty ? 10 : all.length).toInt();
+                          _touch = null;
+                        })),
+                SizedBox(width: 10 * s),
+                _ZoomBtn(icon: Icons.restart_alt_rounded, onTap: () => setState(_resetView)),
+                SizedBox(width: 10 * s),
+                _ZoomBtn(
+                    icon: Icons.zoom_in_rounded,
+                    onTap: () => setState(() {
+                          _win = (_winFor(all.length) ~/ 2).clamp(10, all.isEmpty ? 10 : all.length).toInt();
+                          _touch = null;
+                        })),
+              ])),
             ]),
           ),
           if (pts.isNotEmpty) ...[
@@ -174,6 +254,30 @@ class _ChartScreenState extends State<ChartScreen> {
             ]),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _ZoomBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _ZoomBtn({required this.icon, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final s = sc(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 52 * s,
+        height: 38 * s,
+        decoration: BoxDecoration(
+          color: C.inner,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: C.border),
+        ),
+        child: Icon(icon, color: C.goldText, size: 22 * s),
       ),
     );
   }

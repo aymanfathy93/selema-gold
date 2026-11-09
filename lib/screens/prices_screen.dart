@@ -193,34 +193,91 @@ class _DollarCard extends StatelessWidget {
   final Quote q;
   const _DollarCard({required this.q});
 
+  Widget _rateRow(BuildContext context, IconData icon, String title, double value, Color color, double size) {
+    final s = sc(context);
+    return Row(children: [
+      Container(
+        width: 44 * s,
+        height: 44 * s,
+        decoration: BoxDecoration(
+          color: C.inner,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: C.border),
+        ),
+        child: Icon(icon, color: C.goldText, size: 26 * s),
+      ),
+      SizedBox(width: 12 * s),
+      Expanded(child: Text(title, style: ts(context, 16, w: FontWeight.w700))),
+      Ltr(Row(mainAxisSize: MainAxisSize.min, children: [
+        Text('EGP ', style: ts(context, 14, color: C.muted)),
+        Text(value.toStringAsFixed(2), style: ts(context, size, w: FontWeight.w700, color: color)),
+      ])),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = sc(context);
+    final p = app.settings.premium;
     return GoldCard(
       padding: EdgeInsets.symmetric(horizontal: 18 * s, vertical: 16 * s),
-      child: Row(children: [
-        Container(
-          width: 46 * s,
-          height: 46 * s,
-          decoration: BoxDecoration(
-            color: C.inner,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: C.border),
+      child: Column(children: [
+        _rateRow(context, Icons.account_balance_rounded, T.t('usd_egp'), q.usdEgp, C.text, 21),
+        Container(height: 1, margin: EdgeInsets.symmetric(vertical: 12 * s), color: C.divider),
+        _rateRow(context, Icons.diamond_outlined, T.t('gold_usd'), q.goldEgp, C.goldText, 23),
+        SizedBox(height: 12 * s),
+        Row(children: [
+          Expanded(child: Text(T.t('premium'), style: ts(context, 14, color: C.muted))),
+          Ltr(Text('+ ${p.toStringAsFixed(2)}', style: ts(context, 16, w: FontWeight.w700, color: C.goldText))),
+        ]),
+        Ltr(Row(children: [
+          Text('1', style: ts(context, 12, color: C.muted)),
+          Expanded(
+            child: Slider(
+              value: p.clamp(1.0, 5.0).toDouble(),
+              min: 1,
+              max: 5,
+              divisions: 400,
+              onChanged: (v) => app.setPremiumLive(double.parse(v.toStringAsFixed(2))),
+              onChangeEnd: (v) => app.updateSettings((x) => x.premium = double.parse(v.toStringAsFixed(2))),
+            ),
           ),
-          child: Icon(Icons.attach_money_rounded, color: C.goldText, size: 28 * s),
-        ),
-        SizedBox(width: 14 * s),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(T.t('usd_egp'), style: ts(context, 16, w: FontWeight.w700)),
-            Ltr(Text(T.t('usd_egp_sub'), style: ts(context, 13, color: C.muted))),
-          ]),
-        ),
-        Ltr(Row(mainAxisSize: MainAxisSize.min, children: [
-          Text('EGP ', style: ts(context, 14, color: C.muted)),
-          Text(q.usdEgp.toStringAsFixed(4), style: ts(context, 22, w: FontWeight.w700, color: C.goldText)),
+          Text('5', style: ts(context, 12, color: C.muted)),
+        ])),
+        Ltr(Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          _Step(label: '- 0.01', onTap: () => _nudge(-0.01)),
+          SizedBox(width: 12 * s),
+          _Step(label: '+ 0.01', onTap: () => _nudge(0.01)),
         ])),
       ]),
+    );
+  }
+
+  void _nudge(double d) {
+    final v = double.parse((app.settings.premium + d).clamp(1.0, 5.0).toStringAsFixed(2));
+    app.updateSettings((x) => x.premium = v);
+  }
+}
+
+class _Step extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _Step({required this.label, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    final s = sc(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 18 * s, vertical: 6 * s),
+        decoration: BoxDecoration(
+          color: C.inner,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: C.border),
+        ),
+        child: Text(label, style: ts(context, 14, w: FontWeight.w700, color: C.goldText)),
+      ),
     );
   }
 }

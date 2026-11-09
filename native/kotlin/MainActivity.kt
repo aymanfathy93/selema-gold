@@ -53,6 +53,19 @@ class MainActivity : FlutterActivity() {
                         AlarmPlayer.play(this, sound)
                         result.success(true)
                     }
+                    "testEmail" -> {
+                        val url = call.argument<String>("url") ?: ""
+                        val to = call.argument<String>("to") ?: ""
+                        Thread {
+                            val ok = PriceFetcher.sendMail(
+                                url, to, "Selema Gold: إيميل تجريبي",
+                                "<div dir='rtl' style='font-family:Arial;font-size:16px'>" +
+                                    "<h2 style='color:#B8913F'>Selema Trading</h2>" +
+                                    "<p>تم ربط التنبيهات بالإيميل بنجاح ✅</p></div>"
+                            )
+                            runOnUiThread { result.success(ok) }
+                        }.start()
+                    }
                     "requestNotif" -> {
                         requestNotifPermission()
                         result.success(true)
