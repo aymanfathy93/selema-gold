@@ -19,7 +19,7 @@ class GoldWatchService : Service() {
         @Volatile
         var running = false
         private const val OUNCE = 31.1034768
-        private const val INTERVAL_SEC = 20L
+        private const val INTERVAL_SEC = 5L
 
         fun ensure(ctx: Context) {
             val i = Intent(ctx, GoldWatchService::class.java)

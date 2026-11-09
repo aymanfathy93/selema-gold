@@ -30,6 +30,8 @@ class AppState extends ChangeNotifier {
   double? _sessLow;
 
   Timer? _priceTimer;
+  Timer? _fastTimer;
+  bool _fastBusy = false;
   Timer? _eventTimer;
   bool _refreshing = false;
 
@@ -69,13 +71,56 @@ class AppState extends ChangeNotifier {
     await _pullEvents();
     await _syncNative();
     unawaited(refresh());
-    _priceTimer = Timer.periodic(const Duration(seconds: 15), (_) => refresh());
+    _startTimers();
     _eventTimer = Timer.periodic(const Duration(seconds: 3), (_) => _pullEvents());
+  }
+
+  void _startTimers() {
+    _priceTimer?.cancel();
+    _fastTimer?.cancel();
+    // full refresh (day high/low, change, dollar) every minute
+    _priceTimer = Timer.periodic(const Duration(seconds: 60), (_) => refresh());
+    // live ounce price every second
+    _fastTimer = Timer.periodic(const Duration(seconds: 1), (_) => _fastTick());
+  }
+
+  void onPause() {
+    _priceTimer?.cancel();
+    _fastTimer?.cancel();
+    _priceTimer = null;
+    _fastTimer = null;
   }
 
   void onResume() {
     refresh();
     _pullEvents();
+    _startTimers();
+  }
+
+  Future<void> _fastTick() async {
+    final q = quote;
+    if (_fastBusy || _refreshing || q == null) return;
+    _fastBusy = true;
+    try {
+      final spot = await PriceService.spot();
+      if (spot == null || _refreshing) return;
+      final hi = _sessHigh == null || spot > _sessHigh! ? spot : _sessHigh!;
+      final lo = _sessLow == null || spot < _sessLow! ? spot : _sessLow!;
+      _sessHigh = hi;
+      _sessLow = lo;
+      quote = Quote(
+        xau: spot,
+        prevClose: q.prevClose,
+        dayHigh: hi,
+        dayLow: lo,
+        usdEgp: q.usdEgp,
+        updated: DateTime.now(),
+      );
+      notifyListeners();
+    } catch (_) {
+    } finally {
+      _fastBusy = false;
+    }
   }
 
   Future<void> refresh() async {
@@ -273,6 +318,7 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     _priceTimer?.cancel();
+    _fastTimer?.cancel();
     _eventTimer?.cancel();
     _incoming.close();
     super.dispose();

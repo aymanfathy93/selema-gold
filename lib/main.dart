@@ -98,6 +98,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) app.onResume();
+    if (state == AppLifecycleState.paused) app.onPause();
   }
 
   Future<void> _showAlert(AlertEvent ev) async {

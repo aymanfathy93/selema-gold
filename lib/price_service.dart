@@ -49,9 +49,11 @@ class PriceService {
     'Accept': 'application/json',
   };
 
-  static Future<Map<String, dynamic>?> _get(String url) async {
+  static final http.Client _client = http.Client();
+
+  static Future<Map<String, dynamic>?> _get(String url, {int timeoutSec = 12}) async {
     try {
-      final r = await http.get(Uri.parse(url), headers: _headers).timeout(const Duration(seconds: 12));
+      final r = await _client.get(Uri.parse(url), headers: _headers).timeout(Duration(seconds: timeoutSec));
       if (r.statusCode == 200) {
         final j = jsonDecode(r.body);
         if (j is Map<String, dynamic>) return j;
@@ -62,7 +64,7 @@ class PriceService {
 
   /// Spot XAU/USD (gold-api.com, free, no key)
   static Future<double?> spot() async {
-    final j = await _get('https://api.gold-api.com/price/XAU');
+    final j = await _get('https://api.gold-api.com/price/XAU', timeoutSec: 5);
     final p = j?['price'];
     return p is num && p > 0 ? p.toDouble() : null;
   }
