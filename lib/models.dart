@@ -139,7 +139,7 @@ class AppSettings {
         pinEnabled: j['pinEnabled'] == true,
         pin: '${j['pin'] ?? ''}',
         margin: _d(j['margin'], 15),
-        premium: _d(j['premium'], 0.0).clamp(0.0, 5.0).toDouble(),
+        premium: _d(j['premium'], 0.0).clamp(-5.0, 5.0).toDouble(),
         mailUrl: '${j['mailUrl'] ?? ''}',
         push: j['push'] != false,
         sound: j['sound'] != false,
