@@ -31,6 +31,7 @@ class AppState extends ChangeNotifier {
 
   Timer? _priceTimer;
   Timer? _fastTimer;
+  int tickDir = 0; // 1 up, -1 down (last ounce move)
   bool _fastBusy = false;
   Timer? _eventTimer;
   bool _refreshing = false;
@@ -104,6 +105,8 @@ class AppState extends ChangeNotifier {
     try {
       final spot = await PriceService.spot();
       if (spot == null || _refreshing) return;
+      if (spot > q.xau) tickDir = 1;
+      if (spot < q.xau) tickDir = -1;
       final hi = _sessHigh == null || spot > _sessHigh! ? spot : _sessHigh!;
       final lo = _sessLow == null || spot < _sessLow! ? spot : _sessLow!;
       _sessHigh = hi;

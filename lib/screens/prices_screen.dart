@@ -143,7 +143,13 @@ class _OunceCard extends StatelessWidget {
               fit: BoxFit.scaleDown,
               child: Ltr(Row(mainAxisSize: MainAxisSize.min, children: [
                 Text('USD ', style: ts(context, 15, color: C.muted)),
-                Text(f3(q.xau), style: ts(context, 24, w: FontWeight.w700)),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 250),
+                  style: ts(context, 24,
+                      w: FontWeight.w700,
+                      color: app.tickDir > 0 ? C.green : (app.tickDir < 0 ? C.red : C.text)),
+                  child: Text(f3(q.xau)),
+                ),
               ])),
             ),
             if (q.prevClose > 0)

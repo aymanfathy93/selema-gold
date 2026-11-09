@@ -386,7 +386,31 @@ object PriceFetcher {
     }
 
     /** Spot XAU/USD; gold-api.com first, then Yahoo gold futures as fallback. */
+    private fun swissquote(): Double? {
+        val body = get("https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/XAU/USD") ?: return null
+        return try {
+            val arr = org.json.JSONArray(body)
+            for (i in 0 until arr.length()) {
+                val prices = arr.optJSONObject(i)?.optJSONArray("spreadProfilePrices") ?: continue
+                if (prices.length() == 0) continue
+                var pick = prices.optJSONObject(0)
+                for (k in 0 until prices.length()) {
+                    val p = prices.optJSONObject(k)
+                    if (p != null && p.optString("spreadProfile") == "elite") pick = p
+                }
+                val bid = pick?.optDouble("bid", 0.0) ?: 0.0
+                val ask = pick?.optDouble("ask", 0.0) ?: 0.0
+                if (bid > 0 && ask > 0) return (bid + ask) / 2
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun xau(): Double? {
+        val sq = swissquote()
+        if (sq != null) return sq
         val body = get("https://api.gold-api.com/price/XAU")
         if (body != null) {
             try {

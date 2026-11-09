@@ -62,11 +62,39 @@ class PriceService {
     return null;
   }
 
-  /// Spot XAU/USD (gold-api.com, free, no key)
+  /// Live spot XAU/USD: Swissquote bid/ask feed (tick-level), gold-api.com as fallback.
   static Future<double?> spot() async {
+    final sq = await swissquote();
+    if (sq != null) return sq;
     final j = await _get('https://api.gold-api.com/price/XAU', timeoutSec: 5);
     final p = j?['price'];
     return p is num && p > 0 ? p.toDouble() : null;
+  }
+
+  static Future<double?> swissquote() async {
+    try {
+      final r = await _client
+          .get(Uri.parse('https://forex-data-feed.swissquote.com/public-quotes/bboquotes/instrument/XAU/USD'),
+              headers: _headers)
+          .timeout(const Duration(seconds: 4));
+      if (r.statusCode != 200) return null;
+      final j = jsonDecode(r.body);
+      if (j is! List || j.isEmpty) return null;
+      for (final rec in j) {
+        if (rec is! Map) continue;
+        final prices = rec['spreadProfilePrices'];
+        if (prices is! List || prices.isEmpty) continue;
+        Map? pick;
+        for (final p in prices) {
+          if (p is Map && p['spreadProfile'] == 'elite') pick = p;
+        }
+        pick ??= prices.first is Map ? prices.first as Map : null;
+        final bid = pick?['bid'];
+        final ask = pick?['ask'];
+        if (bid is num && ask is num && bid > 0 && ask > 0) return (bid + ask) / 2;
+      }
+    } catch (_) {}
+    return null;
   }
 
   static Future<YahooChart?> yahoo(String symbol, String query) async {
