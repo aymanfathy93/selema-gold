@@ -112,8 +112,8 @@ class GoldWatchService : Service() {
 
         val margin = settings.optDouble("margin", 15.0)
         val base24 = xau * egp / OUNCE
-        fun sell(k: Int) = base24 * k / 24.0
-        fun buy(k: Int) = sell(k) - margin
+        fun sell(k: Int) = if (k == 0) xau else base24 * k / 24.0
+        fun buy(k: Int) = if (k == 0) xau else sell(k) - margin
 
         Notifier.updateWatch(
             ctx,
@@ -150,8 +150,9 @@ class GoldWatchService : Service() {
                 ev.put("price", price)
                 ev.put("time", now)
                 WatchStore.addEvent(ctx, ev)
-                val label = if (type == "buy") "Buy Price (${karat}K)" else "Sell Price (${karat}K)"
-                val body = "$label = ${fmt(price)} EGP  [${fmt(low)} - ${fmt(high)}]\n$hint"
+                val label = if (karat == 0) "XAU/USD" else if (type == "buy") "Buy Price (${karat}K)" else "Sell Price (${karat}K)"
+                val unit = if (karat == 0) "USD" else "EGP"
+                val body = "$label = ${fmt(price)} $unit  [${fmt(low)} - ${fmt(high)}]\n$hint"
                 if (push) Notifier.showAlert(ctx, (d.optString("id").hashCode() and 0xFFFF), title, body)
             }
         }

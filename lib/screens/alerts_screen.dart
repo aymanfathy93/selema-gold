@@ -98,7 +98,7 @@ class _EventTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = sc(context);
     final col = e.type == 'buy' ? C.green : C.red;
-    final what = '${e.type == 'buy' ? T.t('buy') : T.t('sell')} (${e.karat}K)';
+    final what = e.karat == 0 ? 'XAU/USD' : '${e.type == 'buy' ? T.t('buy') : T.t('sell')} (${e.karat}K)';
     return Container(
       margin: EdgeInsets.only(bottom: 10 * s),
       padding: EdgeInsets.all(14 * s),

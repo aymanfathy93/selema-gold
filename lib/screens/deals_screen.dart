@@ -82,7 +82,7 @@ class _DealTile extends StatelessWidget {
     final col = d.isBuy ? C.green : C.red;
     final now = app.watchedPrice(d);
     final label = d.isBuy ? T.t('buy_deal') : T.t('sell_deal');
-    final watched = '${d.isBuy ? T.t('buy') : T.t('sell')} (${d.karat}K)';
+    final watched = d.karat == 0 ? 'XAU/USD' : '${d.isBuy ? T.t('buy') : T.t('sell')} (${d.karat}K)';
     return Container(
       margin: EdgeInsets.only(bottom: 12 * s),
       padding: EdgeInsets.all(14 * s),
@@ -116,7 +116,7 @@ class _DealTile extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 2 * s),
                 decoration: BoxDecoration(color: C.chip, borderRadius: BorderRadius.circular(8)),
-                child: Text('${d.karat}K', style: ts(context, 13, color: C.muted)),
+                child: Text(karatLabel(d.karat), style: ts(context, 13, color: C.muted)),
               ),
             ]),
             SizedBox(height: 2 * s),
@@ -128,7 +128,7 @@ class _DealTile extends StatelessWidget {
               ),
             ]),
             if (d.active && now != null)
-              Text('${T.t('watching')} $watched • ${T.t('now')} ${f2(now)}',
+              Text('${T.t('watching')} $watched • ${T.t('now')} ${f2(now)} ${unitOf(d.karat)}',
                   style: ts(context, 12, color: C.muted)),
             if (!d.active && d.hitPrice != null)
               Text(
@@ -187,11 +187,13 @@ class _NewDealSheetState extends State<_NewDealSheet> {
     super.dispose();
   }
 
+  static const _karats = [24, 21, 0];
+  int get _k => _karats[_karat];
+
   double? _current() {
     final q = app.quote;
     if (q == null) return null;
-    final k = _karat == 0 ? 24 : 21;
-    return _type == 0 ? q.buy(k, app.settings.margin) : q.sell(k);
+    return _type == 0 ? q.buy(_k, app.settings.margin) : q.sell(_k);
   }
 
   Widget _field(TextEditingController c, String label) {
@@ -206,7 +208,7 @@ class _NewDealSheetState extends State<_NewDealSheet> {
         labelStyle: ts(context, 14, color: C.muted),
         filled: true,
         fillColor: C.field,
-        suffixText: 'EGP',
+        suffixText: unitOf(_k),
         suffixStyle: ts(context, 13, color: C.muted),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: C.border)),
@@ -243,7 +245,7 @@ class _NewDealSheetState extends State<_NewDealSheet> {
             SizedBox(height: 14 * s),
             Text(T.t('karat'), style: ts(context, 14, color: C.muted)),
             SizedBox(height: 8 * s),
-            Segmented(labels: const ['24K', '21K'], index: _karat, onChanged: (i) => setState(() => _karat = i)),
+            Segmented(labels: ['24K', '21K', T.t('ounce_opt')], index: _karat, onChanged: (i) => setState(() => _karat = i)),
             SizedBox(height: 14 * s),
             if (cur != null)
               Container(
@@ -254,7 +256,9 @@ class _NewDealSheetState extends State<_NewDealSheet> {
                 child: Row(children: [
                   Expanded(
                     child: Text(
-                        '${T.t('current')} ${_type == 0 ? T.t('buy') : T.t('sell')} (${_karat == 0 ? 24 : 21}K)',
+                        _k == 0
+                            ? '${T.t('current')} XAU/USD'
+                            : '${T.t('current')} ${_type == 0 ? T.t('buy') : T.t('sell')} (${_k}K)',
                         style: ts(context, 13, color: C.muted)),
                   ),
                   Ltr(Text(f2(cur), style: ts(context, 17, w: FontWeight.w700, color: C.goldText))),
@@ -287,7 +291,7 @@ class _NewDealSheetState extends State<_NewDealSheet> {
                     setState(() => _err = T.t('invalid'));
                     return;
                   }
-                  await app.addDeal(_type == 0 ? 'buy' : 'sell', _karat == 0 ? 24 : 21, lo, hi);
+                  await app.addDeal(_type == 0 ? 'buy' : 'sell', _k, lo, hi);
                   if (context.mounted) Navigator.of(context).pop();
                 },
                 child: Text(T.t('save'), style: ts(context, 16, w: FontWeight.w700, color: const Color(0xFF1A1A1A))),

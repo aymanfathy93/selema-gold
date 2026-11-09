@@ -104,7 +104,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     final ctx = navKey.currentContext;
     if (ctx == null || _dialogOpen) return;
     _dialogOpen = true;
-    final label = '${ev.type == 'buy' ? T.t('buy') : T.t('sell')} (${ev.karat}K)';
+    final label = '${ev.type == 'buy' ? T.t('buy') : T.t('sell')} (${karatLabel(ev.karat)})';
     await showDialog<void>(
       context: ctx,
       barrierDismissible: false,
@@ -120,7 +120,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: ts(c, 15, color: C.muted)),
           const SizedBox(height: 6),
-          Ltr(Text('EGP ${f2(ev.price)}', style: ts(c, 26, w: FontWeight.w700))),
+          Ltr(Text('${unitOf(ev.karat)} ${f2(ev.price)}', style: ts(c, 26, w: FontWeight.w700))),
           const SizedBox(height: 6),
           Text('${T.t('range')} ${f2(ev.low)} - ${f2(ev.high)}', style: ts(c, 14, color: C.gold)),
           const SizedBox(height: 12),
@@ -151,7 +151,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    const screens = [PricesScreen(), ChartScreen(), DealsScreen(), AlertsScreen(), SettingsScreen()];
+    return ListenableBuilder(listenable: app, builder: (context, _) => _shell(context));
+  }
+
+  Widget _shell(BuildContext context) {
+    // new (non-const) instances so every screen rebuilds when app state changes
+    final screens = <Widget>[PricesScreen(), ChartScreen(), DealsScreen(), AlertsScreen(), SettingsScreen()];
     return Scaffold(
       backgroundColor: C.bg,
       body: SafeArea(
@@ -159,7 +164,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
             child: Column(children: [
-              const _TopBar(),
+              _TopBar(),
               Expanded(child: IndexedStack(index: _tab, children: screens)),
             ]),
           ),
@@ -171,7 +176,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar();
+  // ignore: prefer_const_constructors_in_immutables
+  _TopBar();
   @override
   Widget build(BuildContext context) {
     final s = sc(context);

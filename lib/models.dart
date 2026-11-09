@@ -159,8 +159,9 @@ class Quote {
   double get changePct => prevClose > 0 ? change / prevClose * 100 : 0;
   double get base24 => xau * usdEgp / kOunceGrams;
 
-  double sell(int karat) => base24 * karat / 24;
-  double buy(int karat, double margin) => sell(karat) - margin;
+  /// karat 0 = global ounce (XAU/USD)
+  double sell(int karat) => karat == 0 ? xau : base24 * karat / 24;
+  double buy(int karat, double margin) => karat == 0 ? xau : sell(karat) - margin;
 }
 
 class ChartPoint {
@@ -168,6 +169,9 @@ class ChartPoint {
   final double v;
   ChartPoint(this.t, this.v);
 }
+
+String karatLabel(int k) => k == 0 ? 'XAU' : '${k}K';
+String unitOf(int k) => k == 0 ? 'USD' : 'EGP';
 
 String f2(double v) => v.toStringAsFixed(2);
 String f3(double v) => v.toStringAsFixed(3);
