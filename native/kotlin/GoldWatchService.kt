@@ -153,7 +153,7 @@ class GoldWatchService : Service() {
                 val label = if (karat == 0) "XAU/USD" else if (type == "buy") "Buy Price (${karat}K)" else "Sell Price (${karat}K)"
                 val unit = if (karat == 0) "USD" else "EGP"
                 val body = "$label = ${fmt(price)} $unit  [${fmt(low)} - ${fmt(high)}]\n$hint"
-                if (push) Notifier.showAlert(ctx, (d.optString("id").hashCode() and 0xFFFF), title, body)
+                if (push || sound) Notifier.showAlert(ctx, (d.optString("id").hashCode() and 0xFFFF), title, body, sound)
             }
         }
         if (hits.isNotEmpty()) {

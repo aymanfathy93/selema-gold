@@ -49,7 +49,7 @@ class MainActivity : FlutterActivity() {
                         ev.put("time", System.currentTimeMillis())
                         ev.put("test", true)
                         WatchStore.addEvent(this, ev)
-                        if (push) Notifier.showAlert(this, 999, title, body)
+                        if (push || sound) Notifier.showAlert(this, 999, title, body, sound)
                         AlarmPlayer.play(this, sound)
                         result.success(true)
                     }

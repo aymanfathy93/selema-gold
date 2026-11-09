@@ -8,7 +8,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -113,13 +116,45 @@ object WatchStore {
 object AlarmPlayer {
     private var player: MediaPlayer? = null
 
+    private var vibrator: Vibrator? = null
+    @Volatile
+    private var ringing = false
+
     @Synchronized
-    fun isPlaying(): Boolean = try { player?.isPlaying == true } catch (e: Exception) { false }
+    fun isPlaying(): Boolean = ringing || (try { player?.isPlaying == true } catch (e: Exception) { false })
+
+    @Suppress("DEPRECATION")
+    private fun startVibration(ctx: Context, loop: Boolean) {
+        try {
+            val v = ctx.applicationContext.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            val pattern = longArrayOf(0, 800, 500, 800, 500)
+            if (Build.VERSION.SDK_INT >= 26) {
+                v.vibrate(VibrationEffect.createWaveform(pattern, if (loop) 0 else -1))
+            } else {
+                v.vibrate(pattern, if (loop) 0 else -1)
+            }
+            vibrator = v
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun ensureAudible(ctx: Context) {
+        try {
+            val am = ctx.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
+            if (cur < max / 2) am.setStreamVolume(AudioManager.STREAM_ALARM, (max * 3) / 4, 0)
+        } catch (e: Exception) {
+        }
+    }
 
     @Synchronized
     fun play(ctx: Context, loop: Boolean) {
         stop()
+        ringing = loop
+        startVibration(ctx, loop)
         try {
+            if (loop) ensureAudible(ctx)
             var uri: Uri? = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             if (uri == null) uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             if (uri == null) uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
@@ -133,7 +168,7 @@ object AlarmPlayer {
             )
             mp.setDataSource(ctx.applicationContext, uri)
             mp.isLooping = loop
-            mp.setOnCompletionListener { stop() }
+            if (!loop) mp.setOnCompletionListener { stop() }
             mp.prepare()
             mp.start()
             player = mp
@@ -144,6 +179,12 @@ object AlarmPlayer {
 
     @Synchronized
     fun stop() {
+        ringing = false
+        try {
+            vibrator?.cancel()
+        } catch (e: Exception) {
+        }
+        vibrator = null
         try {
             player?.stop()
         } catch (e: Exception) {
@@ -216,7 +257,7 @@ object Notifier {
     }
 
     @Suppress("DEPRECATION")
-    fun showAlert(ctx: Context, id: Int, title: String, body: String) {
+    fun showAlert(ctx: Context, id: Int, title: String, body: String, persistent: Boolean = true) {
         ensureChannels(ctx)
         val stop = Intent(ctx, StopAlarmReceiver::class.java)
         val stopPi = PendingIntent.getBroadcast(ctx, 5, stop, piFlags())
@@ -225,10 +266,13 @@ object Notifier {
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
-            .setAutoCancel(true)
+            .setAutoCancel(!persistent)
+            .setOngoing(persistent)
             .setContentIntent(openAppIntent(ctx))
-            .setDeleteIntent(stopPi)
+            .setFullScreenIntent(openAppIntent(ctx), true)
             .setCategory(Notification.CATEGORY_ALARM)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+        if (!persistent) b.setDeleteIntent(stopPi)
         if (Build.VERSION.SDK_INT < 26) {
             b.setPriority(Notification.PRIORITY_MAX)
             b.setVibrate(longArrayOf(0, 600, 300, 600))
@@ -259,6 +303,7 @@ object Notifier {
 class StopAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         AlarmPlayer.stop()
+        Notifier.cancelAlerts(context)
     }
 }
 
