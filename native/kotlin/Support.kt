@@ -143,7 +143,8 @@ object AlarmPlayer {
             val am = ctx.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val max = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             val cur = am.getStreamVolume(AudioManager.STREAM_ALARM)
-            if (cur < max) am.setStreamVolume(AudioManager.STREAM_ALARM, max, 0)
+            val target = (max * 7) / 10
+            if (cur < target) am.setStreamVolume(AudioManager.STREAM_ALARM, target, 0)
         } catch (e: Exception) {
         }
     }

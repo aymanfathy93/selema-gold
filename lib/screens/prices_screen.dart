@@ -231,13 +231,13 @@ class _DollarCard extends StatelessWidget {
           Ltr(Text('+ ${p.toStringAsFixed(2)}', style: ts(context, 16, w: FontWeight.w700, color: C.goldText))),
         ]),
         Ltr(Row(children: [
-          Text('1', style: ts(context, 12, color: C.muted)),
+          Text('0', style: ts(context, 12, color: C.muted)),
           Expanded(
             child: Slider(
-              value: p.clamp(1.0, 5.0).toDouble(),
-              min: 1,
+              value: p.clamp(0.0, 5.0).toDouble(),
+              min: 0,
               max: 5,
-              divisions: 400,
+              divisions: 500,
               onChanged: (v) => app.setPremiumLive(double.parse(v.toStringAsFixed(2))),
               onChangeEnd: (v) => app.updateSettings((x) => x.premium = double.parse(v.toStringAsFixed(2))),
             ),
@@ -254,7 +254,7 @@ class _DollarCard extends StatelessWidget {
   }
 
   void _nudge(double d) {
-    final v = double.parse((app.settings.premium + d).clamp(1.0, 5.0).toStringAsFixed(2));
+    final v = double.parse((app.settings.premium + d).clamp(0.0, 5.0).toStringAsFixed(2));
     app.updateSettings((x) => x.premium = v);
   }
 }
